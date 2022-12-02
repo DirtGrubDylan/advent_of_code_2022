@@ -25,9 +25,10 @@ fn get_total_score(rounds: &[Round]) -> u32 {
 }
 
 fn get_total_expected_score(rounds: &[Round]) -> u32 {
-    rounds.iter().fold(0, |acc, round| acc + round.get_expected_output_score())
+    rounds
+        .iter()
+        .fold(0, |acc, round| acc + round.get_expected_output_score())
 }
-
 
 #[cfg(test)]
 mod tests {
