@@ -13,10 +13,12 @@ pub fn run() {
         .nth(0)
         .expect("Could not build Device!");
 
-    let number_of_characters_before_first_start_of_packet =
-        device.number_of_characters_before_first_start_of_packet();
-    let number_of_characters_before_first_start_of_message =
-        device.number_of_characters_before_first_start_of_message();
+    let number_of_characters_before_first_start_of_packet = device
+        .number_of_characters_before_first_start_of_packet()
+        .expect("Couldn't find packet marker.");
+    let number_of_characters_before_first_start_of_message = device
+        .number_of_characters_before_first_start_of_message()
+        .expect("Couldn't find message marker.");
 
     println!(
         "Day 6, Part 1: {}",

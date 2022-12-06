@@ -4,25 +4,25 @@ use communication_system::{START_OF_MESSAGE_MARKER_SIZE, START_OF_PACKET_MARKER_
 
 #[derive(Debug, PartialEq)]
 pub struct Device {
-    data_stream_buffer: String,
+    data_stream_buffer: Vec<char>,
 }
 
 impl Device {
-    pub fn number_of_characters_before_first_start_of_packet(&self) -> usize {
+    pub fn number_of_characters_before_first_start_of_packet(&self) -> Option<usize> {
         communication_system::start_of_packet_marker_index(&self.data_stream_buffer, 0)
-            + START_OF_PACKET_MARKER_SIZE
+            .map(|index| index + START_OF_PACKET_MARKER_SIZE)
     }
 
-    pub fn number_of_characters_before_first_start_of_message(&self) -> usize {
+    pub fn number_of_characters_before_first_start_of_message(&self) -> Option<usize> {
         communication_system::start_of_message_marker_index(&self.data_stream_buffer, 0)
-            + START_OF_MESSAGE_MARKER_SIZE
+            .map(|index| index + START_OF_MESSAGE_MARKER_SIZE)
     }
 }
 
 impl From<&String> for Device {
     fn from(input: &String) -> Device {
         Device {
-            data_stream_buffer: input.clone(),
+            data_stream_buffer: input.chars().collect(),
         }
     }
 }
@@ -46,7 +46,11 @@ mod tests {
         let result: Vec<usize> = input
             .iter()
             .map(|line| Device::from(line))
-            .map(|device| device.number_of_characters_before_first_start_of_packet())
+            .map(|device| {
+                device
+                    .number_of_characters_before_first_start_of_packet()
+                    .unwrap()
+            })
             .collect();
 
         assert_eq!(result, expected);
@@ -67,7 +71,11 @@ mod tests {
         let result: Vec<usize> = input
             .iter()
             .map(|line| Device::from(line))
-            .map(|device| device.number_of_characters_before_first_start_of_message())
+            .map(|device| {
+                device
+                    .number_of_characters_before_first_start_of_message()
+                    .unwrap()
+            })
             .collect();
 
         assert_eq!(result, expected);
