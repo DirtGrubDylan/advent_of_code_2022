@@ -1,5 +1,5 @@
-pub mod util;
 pub mod device;
+pub mod util;
 
 mod day_1;
 mod day_2;

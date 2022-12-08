@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
 use super::commands::{ChangeDirectory, ExecutedCommand, List};
@@ -80,9 +80,36 @@ pub struct FileSystem {
 }
 
 impl FileSystem {
-    #[allow(dead_code)]
-    fn get_size(&self) -> u64 {
+    pub fn get_size(&self) -> u64 {
         self.root_directory.borrow().get_size()
+    }
+
+    pub fn directory_sizes_while<P>(&self, predicate: P) -> HashMap<String, u64>
+    where
+        P: Fn(u64) -> bool,
+    {
+        let mut sizes = HashMap::new();
+
+        let mut path: Vec<Rc<RefCell<Directory>>> = vec![Rc::clone(&self.root_directory)];
+
+        while let Some(current_directory) = path.pop() {
+            let current_directory_size = current_directory.borrow().get_size();
+
+            if predicate(current_directory_size) {
+                sizes.insert(
+                    current_directory.borrow().name.to_string(),
+                    current_directory_size,
+                );
+            }
+
+            current_directory
+                .borrow()
+                .directories
+                .values()
+                .for_each(|rc| path.push(Rc::clone(rc)));
+        }
+
+        sizes
     }
 
     pub fn sum_of_directory_sizes_while<P>(&self, predicate: P) -> u64
@@ -335,6 +362,36 @@ mod tests {
         let expected = 23_353_254;
 
         let result = file_system.get_size();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_file_system_directory_sizes_while() {
+        let commands = vec![
+            ExecutedCommand::ChangeDirectory(ChangeDirectory::Root),
+            ExecutedCommand::List(List {
+                directories: vec![String::from("a"), String::from("d")],
+                files: vec![String::from("14848514 b.txt")],
+            }),
+            ExecutedCommand::ChangeDirectory(ChangeDirectory::To(String::from("a"))),
+            ExecutedCommand::List(List {
+                directories: vec![],
+                files: vec![String::from("584 i")],
+            }),
+            ExecutedCommand::ChangeDirectory(ChangeDirectory::Out),
+            ExecutedCommand::ChangeDirectory(ChangeDirectory::To(String::from("d"))),
+            ExecutedCommand::List(List {
+                directories: vec![],
+                files: vec![String::from("8504156 c.dat")],
+            }),
+        ];
+
+        let file_system = FileSystem::create_from_executed_commands(&commands);
+
+        let expected = HashMap::from([(String::from("a"), 584), (String::from("d"), 8_504_156)]);
+
+        let result = file_system.directory_sizes_while(|size| size <= 9_000_000);
 
         assert_eq!(result, expected);
     }

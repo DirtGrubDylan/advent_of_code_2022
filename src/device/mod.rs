@@ -8,6 +8,8 @@ use commands::ExecutedCommand;
 use communication_system::{START_OF_MESSAGE_MARKER_SIZE, START_OF_PACKET_MARKER_SIZE};
 use file_system::FileSystem;
 
+const TOTAL_FILE_SYSTEM_SIZE: u64 = 70_000_000;
+
 #[derive(Debug, PartialEq)]
 pub struct Device {
     data_stream_buffer: Vec<char>,
@@ -37,11 +39,26 @@ impl Device {
             FileSystem::create_from_executed_commands(&ExecutedCommand::extract_commands(commands));
     }
 
+    pub fn available_disk_space(&self) -> u64 {
+        TOTAL_FILE_SYSTEM_SIZE - self.file_system.get_size()
+    }
+
     pub fn sum_of_directory_sizes_while<P>(&self, predicate: P) -> u64
     where
         P: Fn(u64) -> bool,
     {
         self.file_system.sum_of_directory_sizes_while(predicate)
+    }
+
+    pub fn smallest_directory_size_where<P>(&self, predicate: P) -> Option<u64>
+    where
+        P: Fn(u64) -> bool,
+    {
+        self.file_system
+            .directory_sizes_while(predicate)
+            .values()
+            .min()
+            .cloned()
     }
 }
 
