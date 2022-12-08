@@ -5,7 +5,7 @@ pub enum ExecutedCommand {
 }
 
 impl ExecutedCommand {
-    fn extract_commands(input: &[String]) -> Vec<ExecutedCommand> {
+    pub fn extract_commands(input: &[String]) -> Vec<ExecutedCommand> {
         let mut reversed_input: Vec<String> = input.iter().rev().cloned().collect();
 
         reversed_input
@@ -112,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn test_command_change_directory_ls() {
+    fn test_command_list() {
         let input = [
             String::from("$ ls"),
             String::from("dir a"),

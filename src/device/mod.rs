@@ -2,14 +2,26 @@ mod commands;
 mod communication_system;
 mod file_system;
 
+use std::vec;
+
+use commands::ExecutedCommand;
 use communication_system::{START_OF_MESSAGE_MARKER_SIZE, START_OF_PACKET_MARKER_SIZE};
+use file_system::FileSystem;
 
 #[derive(Debug, PartialEq)]
 pub struct Device {
     data_stream_buffer: Vec<char>,
+    file_system: FileSystem,
 }
 
 impl Device {
+    pub fn new() -> Device {
+        Device {
+            data_stream_buffer: vec![],
+            file_system: FileSystem::new(),
+        }
+    }
+
     pub fn number_of_characters_before_first_start_of_packet(&self) -> Option<usize> {
         communication_system::start_of_packet_marker_index(&self.data_stream_buffer, 0)
             .map(|index| index + START_OF_PACKET_MARKER_SIZE)
@@ -19,12 +31,25 @@ impl Device {
         communication_system::start_of_message_marker_index(&self.data_stream_buffer, 0)
             .map(|index| index + START_OF_MESSAGE_MARKER_SIZE)
     }
+
+    pub fn populate_file_system_from_executed_commands(&mut self, commands: &[String]) {
+        self.file_system =
+            FileSystem::create_from_executed_commands(&ExecutedCommand::extract_commands(commands));
+    }
+
+    pub fn sum_of_directory_sizes_while<P>(&self, predicate: P) -> u64
+    where
+        P: Fn(u64) -> bool,
+    {
+        self.file_system.sum_of_directory_sizes_while(predicate)
+    }
 }
 
 impl From<&String> for Device {
     fn from(input: &String) -> Device {
         Device {
             data_stream_buffer: input.chars().collect(),
+            file_system: FileSystem::new(),
         }
     }
 }
