@@ -1,8 +1,5 @@
-mod device;
-
+use crate::device::Device;
 use crate::util::file_reader::to_string_vector;
-
-use device::Device;
 
 pub fn run() {
     let input = to_string_vector("inputs/day_6.txt").expect("Something went wrong Day 6!");
