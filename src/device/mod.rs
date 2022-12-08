@@ -1,4 +1,6 @@
+mod commands;
 mod communication_system;
+mod file_system;
 
 use communication_system::{START_OF_MESSAGE_MARKER_SIZE, START_OF_PACKET_MARKER_SIZE};
 
