@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, Copy, Clone, PartialEq, Eq)]
 pub enum Direction {
     Top,
     Right,
@@ -56,26 +56,42 @@ impl Forest {
         result
     }
 
+    pub fn tree_scenic_scores(&self) -> HashMap<(usize, usize), usize> {
+        let mut result = HashMap::new();
+
+        for (location, score) in self.tree_scenic_scores_from(Direction::Top) {
+            result.entry(location).or_insert(score);
+        }
+
+        for (location, score) in self.tree_scenic_scores_from(Direction::Right) {
+            result.entry(location).and_modify(|value| *value *= score);
+        }
+
+        for (location, score) in self.tree_scenic_scores_from(Direction::Bottom) {
+            result.entry(location).and_modify(|value| *value *= score);
+        }
+
+        for (location, score) in self.tree_scenic_scores_from(Direction::Left) {
+            result.entry(location).and_modify(|value| *value *= score);
+        }
+
+        result
+    }
+
     fn tree_visibility_from(&self, direction: Direction) -> HashSet<(usize, usize)> {
         let mut result = HashSet::new();
 
-        let mut count = 0;
         let mut max_height_so_far = None;
 
-        while count < self.length * self.width {
-            let (row, col) = match direction {
-                Direction::Top => (count % self.length, count / self.length),
-                Direction::Right => (count / self.width, self.width - 1 - count % self.width),
-                Direction::Bottom => (self.length - 1 - count % self.length, count / self.length),
-                Direction::Left => (count / self.width, count % self.width),
-            };
+        for count in 0..(self.length * self.width) {
+            let (row, col) = self.next_tree_from(direction, count);
 
-            match direction {
-                Direction::Top if (count % self.length == 0) => max_height_so_far = None,
-                Direction::Right if (count % self.width == 0) => max_height_so_far = None,
-                Direction::Bottom if (count % self.length == 0) => max_height_so_far = None,
-                Direction::Left if (count % self.width == 0) => max_height_so_far = None,
-                _ => (),
+            max_height_so_far = match direction {
+                Direction::Top if (count % self.length == 0) => None,
+                Direction::Right if (count % self.width == 0) => None,
+                Direction::Bottom if (count % self.length == 0) => None,
+                Direction::Left if (count % self.width == 0) => None,
+                _ => max_height_so_far,
             };
 
             let tree_height = *self
@@ -92,11 +108,65 @@ impl Forest {
                     max_height_so_far = Some(tree_height);
                 }
             }
-
-            count += 1;
         }
 
         result
+    }
+
+    fn tree_scenic_scores_from(&self, direction: Direction) -> HashMap<(usize, usize), usize> {
+        let mut result = HashMap::new();
+
+        let mut heights_last_seen = HashMap::new();
+
+        for count in 0..(self.length * self.width) {
+            let (row, col) = self.next_tree_from(direction, count);
+
+            heights_last_seen = match direction {
+                Direction::Top if (count % self.length == 0) => HashMap::new(),
+                Direction::Right if (count % self.width == 0) => HashMap::new(),
+                Direction::Bottom if (count % self.length == 0) => HashMap::new(),
+                Direction::Left if (count % self.width == 0) => HashMap::new(),
+                _ => heights_last_seen,
+            };
+
+            let inner_count = match direction {
+                Direction::Top => count % self.length,
+                Direction::Right => count % self.width,
+                Direction::Bottom => count % self.length,
+                Direction::Left => count % self.width,
+            };
+
+            let tree_height = *self
+                .trees
+                .get(row)
+                .map(|row| row.get(col))
+                .flatten()
+                .expect(&format!("Couldn't get tree at: {:?}", (row, col)));
+
+            let score = (tree_height..10)
+                .filter_map(|height| {
+                    heights_last_seen
+                        .get(&height)
+                        .map(|last_seen| inner_count - last_seen)
+                })
+                .min()
+                .unwrap_or(inner_count);
+
+            result.insert((row, col), score);
+
+            heights_last_seen.insert(tree_height, inner_count);
+        }
+
+        result
+    }
+
+    fn next_tree_from(&self, direction: Direction, count: usize) -> (usize, usize) {
+        match direction {
+            Direction::Top => (count % self.length, count / self.length),
+            Direction::Right => (count / self.width, self.width - 1 - count % self.width),
+            Direction::Bottom => (self.length - 1 - count % self.length, count / self.length),
+            Direction::Left => (count / self.width, count % self.width),
+        }
     }
 }
 
@@ -150,7 +220,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_tree_locations_visibile_from_top() {
+    fn test_tree_visibility_from_top() {
         let input = vec![
             String::from("30373"),
             String::from("25512"),
@@ -180,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_tree_locations_visibile_from_right() {
+    fn test_tree_visibility_from_right() {
         let input = vec![
             String::from("30373"),
             String::from("25512"),
@@ -282,6 +352,79 @@ mod tests {
         ]);
 
         let result = forest.tree_visibility();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_tree_scenic_scores_from_bottom() {
+        let input = vec![
+            String::from("30373"),
+            String::from("25512"),
+            String::from("65332"),
+            String::from("33549"),
+            String::from("35390"),
+        ];
+
+        let forest = Forest::from(&input);
+
+        let expected = vec![2, 1];
+
+        let results = forest.tree_scenic_scores_from(Direction::Bottom);
+
+        let result = vec![
+            results.get(&(1, 2)).cloned().unwrap(),
+            results.get(&(3, 2)).cloned().unwrap(),
+        ];
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_tree_scenic_scores_from_left() {
+        let input = vec![
+            String::from("30373"),
+            String::from("25512"),
+            String::from("65332"),
+            String::from("33549"),
+            String::from("35390"),
+        ];
+
+        let forest = Forest::from(&input);
+
+        let expected = vec![1, 2];
+
+        let results = forest.tree_scenic_scores_from(Direction::Left);
+
+        let result = vec![
+            results.get(&(1, 2)).cloned().unwrap(),
+            results.get(&(3, 2)).cloned().unwrap(),
+        ];
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_tree_scenic_scores() {
+        let input = vec![
+            String::from("30373"),
+            String::from("25512"),
+            String::from("65332"),
+            String::from("33549"),
+            String::from("35390"),
+        ];
+
+        let forest = Forest::from(&input);
+
+        // let expected = HashSet::from([((1, 2), 4), ((1, 2), 8)]);
+        let expected = vec![4, 8];
+
+        let results = forest.tree_scenic_scores();
+
+        let result = vec![
+            results.get(&(1, 2)).cloned().unwrap(),
+            results.get(&(3, 2)).cloned().unwrap(),
+        ];
 
         assert_eq!(result, expected);
     }
