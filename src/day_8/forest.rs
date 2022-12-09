@@ -19,38 +19,34 @@ impl Forest {
     pub fn tree_visibility(&self) -> HashMap<(usize, usize), HashSet<Direction>> {
         let mut result = HashMap::new();
 
-        for location in self.tree_visibility_from(Direction::Top) {
-            result
-                .entry(location)
-                .or_insert(HashSet::new())
-                .insert(Direction::Top);
-        }
-
-        for location in self.tree_visibility_from(Direction::Right) {
-            result
-                .entry(location)
-                .or_insert(HashSet::new())
-                .insert(Direction::Right);
-        }
-
-        for location in self.tree_visibility_from(Direction::Bottom) {
-            result
-                .entry(location)
-                .or_insert(HashSet::new())
-                .insert(Direction::Bottom);
-        }
-
-        for location in self.tree_visibility_from(Direction::Left) {
-            result
-                .entry(location)
-                .or_insert(HashSet::new())
-                .insert(Direction::Left);
-        }
-
         for row in 0..self.length {
             for col in 0..self.width {
                 result.entry((row, col)).or_insert(HashSet::new());
             }
+        }
+
+        for location in self.tree_visibility_from(Direction::Top) {
+            result.entry(location).and_modify(|directions| {
+                directions.insert(Direction::Top);
+            });
+        }
+
+        for location in self.tree_visibility_from(Direction::Right) {
+            result.entry(location).and_modify(|directions| {
+                directions.insert(Direction::Right);
+            });
+        }
+
+        for location in self.tree_visibility_from(Direction::Bottom) {
+            result.entry(location).and_modify(|directions| {
+                directions.insert(Direction::Bottom);
+            });
+        }
+
+        for location in self.tree_visibility_from(Direction::Left) {
+            result.entry(location).and_modify(|directions| {
+                directions.insert(Direction::Left);
+            });
         }
 
         result
@@ -86,13 +82,9 @@ impl Forest {
         for count in 0..(self.length * self.width) {
             let (row, col) = self.next_tree_from(direction, count);
 
-            max_height_so_far = match direction {
-                Direction::Top if (count % self.length == 0) => None,
-                Direction::Right if (count % self.width == 0) => None,
-                Direction::Bottom if (count % self.length == 0) => None,
-                Direction::Left if (count % self.width == 0) => None,
-                _ => max_height_so_far,
-            };
+            if self.line_count(direction, count) == 0 {
+                max_height_so_far = None;
+            }
 
             let tree_height = *self
                 .trees
@@ -118,28 +110,19 @@ impl Forest {
 
         let mut heights_last_seen = HashMap::new();
 
-        for count in 0..(self.length * self.width) {
-            let (row, col) = self.next_tree_from(direction, count);
+        for tree in 0..(self.length * self.width) {
+            let (row, col) = self.next_tree_from(direction, tree);
 
-            heights_last_seen = match direction {
-                Direction::Top if (count % self.length == 0) => HashMap::new(),
-                Direction::Right if (count % self.width == 0) => HashMap::new(),
-                Direction::Bottom if (count % self.length == 0) => HashMap::new(),
-                Direction::Left if (count % self.width == 0) => HashMap::new(),
-                _ => heights_last_seen,
-            };
+            let tree_in_line = self.line_count(direction, tree);
 
-            let inner_count = match direction {
-                Direction::Top => count % self.length,
-                Direction::Right => count % self.width,
-                Direction::Bottom => count % self.length,
-                Direction::Left => count % self.width,
-            };
+            if tree_in_line == 0 {
+                heights_last_seen = HashMap::new();
+            }
 
             let tree_height = *self
                 .trees
                 .get(row)
-                .map(|row| row.get(col))
+                .map(|line| line.get(col))
                 .flatten()
                 .expect(&format!("Couldn't get tree at: {:?}", (row, col)));
 
@@ -147,14 +130,14 @@ impl Forest {
                 .filter_map(|height| {
                     heights_last_seen
                         .get(&height)
-                        .map(|last_seen| inner_count - last_seen)
+                        .map(|last_seen| tree_in_line - last_seen)
                 })
                 .min()
-                .unwrap_or(inner_count);
+                .unwrap_or(tree_in_line);
 
             result.insert((row, col), score);
 
-            heights_last_seen.insert(tree_height, inner_count);
+            heights_last_seen.insert(tree_height, tree_in_line);
         }
 
         result
@@ -166,6 +149,15 @@ impl Forest {
             Direction::Right => (count / self.width, self.width - 1 - count % self.width),
             Direction::Bottom => (self.length - 1 - count % self.length, count / self.length),
             Direction::Left => (count / self.width, count % self.width),
+        }
+    }
+
+    fn line_count(&self, direction: Direction, count: usize) -> usize {
+        match direction {
+            Direction::Top => count % self.length,
+            Direction::Right => count % self.width,
+            Direction::Bottom => count % self.length,
+            Direction::Left => count % self.width,
         }
     }
 }
@@ -301,13 +293,11 @@ mod tests {
                 HashSet::from([Direction::Top, Direction::Right, Direction::Left]),
             ),
             ((0, 4), HashSet::from([Direction::Top, Direction::Right])),
-            // ----
             ((1, 0), HashSet::from([Direction::Left])),
             ((1, 1), HashSet::from([Direction::Top, Direction::Left])),
             ((1, 2), HashSet::from([Direction::Top, Direction::Right])),
             ((1, 3), HashSet::from([])),
             ((1, 4), HashSet::from([Direction::Right])),
-            // ----
             (
                 (2, 0),
                 HashSet::from([
@@ -321,7 +311,6 @@ mod tests {
             ((2, 2), HashSet::from([])),
             ((2, 3), HashSet::from([Direction::Right])),
             ((2, 4), HashSet::from([Direction::Right])),
-            // ----
             ((3, 0), HashSet::from([Direction::Left])),
             ((3, 1), HashSet::from([])),
             ((3, 2), HashSet::from([Direction::Bottom, Direction::Left])),
@@ -335,7 +324,6 @@ mod tests {
                     Direction::Left,
                 ]),
             ),
-            // ----
             ((4, 0), HashSet::from([Direction::Bottom, Direction::Left])),
             ((4, 1), HashSet::from([Direction::Bottom, Direction::Left])),
             ((4, 2), HashSet::from([Direction::Bottom])),
@@ -416,7 +404,6 @@ mod tests {
 
         let forest = Forest::from(&input);
 
-        // let expected = HashSet::from([((1, 2), 4), ((1, 2), 8)]);
         let expected = vec![4, 8];
 
         let results = forest.tree_scenic_scores();
