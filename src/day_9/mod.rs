@@ -11,10 +11,12 @@ pub fn run() {
     let motions: Vec<Motion> = input.iter().map(|line| Motion::from(line)).collect();
 
     let part_1 = part_1(&mut rope, &motions);
+
+    println!("Day 9, Part 1: {}", part_1);
 }
 
 fn part_1(rope: &mut Rope, motions: &[Motion]) -> usize {
-    unimplemented!()
+    rope.apply_motions(motions).1.len()
 }
 
 #[cfg(test)]
