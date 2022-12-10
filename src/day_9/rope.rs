@@ -49,59 +49,58 @@ impl From<&String> for Motion {
 
 #[derive(Debug, PartialEq)]
 pub struct Rope {
-    head: Point2d<i32>,
-    tail: Point2d<i32>,
+    length: usize,
+    knots: Vec<Point2d<i32>>,
 }
 
 impl Rope {
-    pub fn apply_motions(
-        &mut self,
-        motions: &[Motion],
-    ) -> (HashSet<Point2d<i32>>, HashSet<Point2d<i32>>) {
-        motions.iter().fold(
-            (HashSet::new(), HashSet::new()),
-            |(h_acc, t_acc), &motion| {
-                let (h, t) = self.apply_motion(motion);
+    pub fn apply_motions(&mut self, motions: &[Motion]) -> HashSet<Point2d<i32>> {
+        motions.iter().fold(HashSet::new(), |acc, &motion| {
+            let tail_positions = self.apply_motion(motion);
 
-                (
-                    h_acc.union(&h).cloned().collect(),
-                    t_acc.union(&t).cloned().collect(),
-                )
-            },
-        )
+            acc.union(&tail_positions).cloned().collect()
+        })
     }
 
-    fn apply_motion(&mut self, motion: Motion) -> (HashSet<Point2d<i32>>, HashSet<Point2d<i32>>) {
-        let mut head_locations = HashSet::from([self.head]);
-        let mut tail_locations = HashSet::from([self.tail]);
+    fn apply_motion(&mut self, motion: Motion) -> HashSet<Point2d<i32>> {
+        let mut tail_locations = HashSet::from([*self.knots.last().unwrap()]);
 
-        let destination = self.head.add(&motion.as_offset());
+        let destination = self.knots.first().unwrap().add(&motion.as_offset());
         let step_offset = motion.as_normalized_offset();
 
-        while self.head != destination {
-            let old_head = self.head;
-            self.head = self.head.add(&step_offset);
+        while *self.knots.first().unwrap() != destination {
+            let head = self.knots.first_mut().unwrap();
 
-            let tail_within_x_range = self.head.x.abs_diff(self.tail.x) <= 1;
-            let tail_within_y_range = self.head.y.abs_diff(self.tail.y) <= 1;
+            let mut old_location = *head;
+            let mut new_location = head.add(&step_offset);
 
-            if !tail_within_x_range || !tail_within_y_range {
-                self.tail = old_head;
+            *head = new_location;
+
+            for (knot_index, knot) in self.knots.iter_mut().enumerate().skip(1) {
+                let knot_within_x_range = new_location.x.abs_diff(knot.x) <= 1;
+                let knot_within_y_range = new_location.y.abs_diff(knot.y) <= 1;
+
+                if !knot_within_x_range || !knot_within_y_range {
+                    new_location = old_location;
+                    old_location = *knot;
+                    *knot = new_location;
+                }
+
+                if knot_index == self.length - 1 {
+                    tail_locations.insert(*knot);
+                }
             }
-
-            head_locations.insert(self.head);
-            tail_locations.insert(self.tail);
         }
 
-        (head_locations, tail_locations)
+        tail_locations
     }
 }
 
 impl Rope {
-    pub fn new() -> Rope {
+    pub fn new(length: usize) -> Rope {
         Rope {
-            head: Point2d::new(0, 0),
-            tail: Point2d::new(0, 0),
+            length,
+            knots: vec![Point2d::new(0, 0); length],
         }
     }
 }
@@ -112,24 +111,13 @@ mod tests {
 
     #[test]
     fn test_rope_apply_right() {
-        let mut rope = Rope::new();
+        let mut rope = Rope::new(2);
 
-        rope.head = Point2d::new(1, 3);
-        rope.tail = Point2d::new(2, 4);
+        rope.knots = vec![Point2d::new(1, 3), Point2d::new(2, 4)];
 
-        let expected = (
-            HashSet::from([
-                Point2d::new(1, 3),
-                Point2d::new(2, 3),
-                Point2d::new(3, 3),
-                Point2d::new(4, 3),
-                Point2d::new(5, 3),
-            ]),
-            HashSet::from([Point2d::new(2, 4), Point2d::new(3, 3), Point2d::new(4, 3)]),
-        );
+        let expected = HashSet::from([Point2d::new(2, 4), Point2d::new(3, 3), Point2d::new(4, 3)]);
 
-        let result: (HashSet<Point2d<i32>>, HashSet<Point2d<i32>>) =
-            rope.apply_motion(Motion::Right(4));
+        let result: HashSet<Point2d<i32>> = rope.apply_motion(Motion::Right(4));
 
         assert_eq!(result, expected);
     }
@@ -147,7 +135,7 @@ mod tests {
             Motion::Right(2),
         ];
 
-        let mut rope = Rope::new();
+        let mut rope = Rope::new(2);
 
         let expected = HashSet::from([
             Point2d::new(0, 0),
@@ -165,7 +153,7 @@ mod tests {
             Point2d::new(3, 4),
         ]);
 
-        let result: HashSet<Point2d<i32>> = rope.apply_motions(&input).1;
+        let result: HashSet<Point2d<i32>> = rope.apply_motions(&input);
 
         assert_eq!(result, expected);
     }

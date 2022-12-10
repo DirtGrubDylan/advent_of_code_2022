@@ -6,7 +6,7 @@ use rope::{Motion, Rope};
 pub fn run() {
     let input = to_string_vector("inputs/day_9.txt").expect("Something went wrong Day 9!");
 
-    let mut rope = Rope::new();
+    let mut rope = Rope::new(2);
 
     let motions: Vec<Motion> = input.iter().map(|line| Motion::from(line)).collect();
 
@@ -16,7 +16,7 @@ pub fn run() {
 }
 
 fn part_1(rope: &mut Rope, motions: &[Motion]) -> usize {
-    rope.apply_motions(motions).1.len()
+    rope.apply_motions(motions).len()
 }
 
 #[cfg(test)]
@@ -36,7 +36,7 @@ mod tests {
             Motion::Right(2),
         ];
 
-        let mut rope = Rope::new();
+        let mut rope = Rope::new(2);
 
         let expected = 13;
 
