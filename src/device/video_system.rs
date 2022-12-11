@@ -28,7 +28,7 @@ impl CpuInstruction {
     fn number_of_cycles_to_complete(&self) -> usize {
         match &self {
             Self::NoOp => 1,
-            Self::Add(value) => 2,
+            Self::Add(_) => 2,
         }
     }
 }
