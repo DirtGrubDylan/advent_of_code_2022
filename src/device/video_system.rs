@@ -13,9 +13,24 @@ struct Cycle {
     state: CycleState,
 }
 
+impl Cycle {
+    fn new() -> Cycle {
+        Cycle {
+            tick: 0,
+            state: CycleState::Starting,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 struct ClockCircuit {
     current_cycle: Cycle,
+}
+
+impl ClockCircuit {
+    fn new() -> ClockCircuit {
+        unimplemented!()
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -39,4 +54,13 @@ pub struct Cpu {
     instructions: VecDeque<CpuInstruction>,
     current_cycle: Cycle,
     current_instruction: CpuInstruction,
+}
+
+impl struct Cpu {
+    fn new() -> Cpu {
+        unimplemented!()
+    }
+
+    fn execute(&mut self) {
+    }
 }
