@@ -20,6 +20,14 @@ impl Cycle {
             state: CycleState::Starting,
         }
     }
+
+    fn next_stage(&self) -> ClockCircuit {
+        unimplemented!()
+    }
+
+    fn next_cycle(&self) -> ClockCircuit {
+        unimplemented!()
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -48,6 +56,12 @@ impl CpuInstruction {
     }
 }
 
+impl From<&String> for CpuInstruction {
+    fn from(input: &String) -> CpuInstruction {
+        unimplemented!()
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Cpu {
     registers: HashMap<char, isize>,
@@ -61,6 +75,55 @@ impl struct Cpu {
         unimplemented!()
     }
 
-    fn execute(&mut self) {
+    fn run(&mut self, cycle: &Cycle) -> isize {
+        unimplemented!()
+    }
+
+    fn execute(&mut self, instruction: &CpuInstruction) {
+        unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cycle_next_stage() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_cycle_next_tick() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_clock_circuit_iter() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_cpu_instruction_from() {
+        unimplemented!()
+    }
+    #[test]
+    fn test_cycle_next_stage() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_cpu_execute_noop() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_cpu_execute_add() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_cpu_execute_run() {
+        unimplemented!()
     }
 }
