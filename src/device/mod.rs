@@ -1,6 +1,7 @@
 mod commands;
 mod communication_system;
 mod file_system;
+mod video_system;
 
 use std::vec;
 
