@@ -3,11 +3,12 @@ mod communication_system;
 mod file_system;
 mod video_system;
 
-use std::vec;
+use std::collections::HashSet;
 
 use commands::ExecutedCommand;
 use communication_system::{START_OF_MESSAGE_MARKER_SIZE, START_OF_PACKET_MARKER_SIZE};
 use file_system::FileSystem;
+use video_system::VideoSystem;
 
 const TOTAL_FILE_SYSTEM_SIZE: u64 = 70_000_000;
 
@@ -15,6 +16,7 @@ const TOTAL_FILE_SYSTEM_SIZE: u64 = 70_000_000;
 pub struct Device {
     data_stream_buffer: Vec<char>,
     file_system: FileSystem,
+    video_sytem: VideoSystem,
 }
 
 impl Device {
@@ -22,6 +24,7 @@ impl Device {
         Device {
             data_stream_buffer: vec![],
             file_system: FileSystem::new(),
+            video_sytem: VideoSystem::new(),
         }
     }
 
@@ -61,6 +64,18 @@ impl Device {
             .min()
             .cloned()
     }
+
+    pub fn add_video_system_cpu_instructions(&mut self, input: &[String]) {
+        self.video_sytem.add_cpu_instructions(input);
+    }
+
+    pub fn get_video_system_x_signal_strengths_at(&mut self, ticks: &HashSet<usize>) -> Vec<i32> {
+        self.video_sytem
+            .get_cpu_register_signal_strengths_at('X', ticks)
+            .into_iter()
+            .filter_map(|value| value)
+            .collect()
+    }
 }
 
 impl From<&String> for Device {
@@ -68,6 +83,7 @@ impl From<&String> for Device {
         Device {
             data_stream_buffer: input.chars().collect(),
             file_system: FileSystem::new(),
+            video_sytem: VideoSystem::new(),
         }
     }
 }
