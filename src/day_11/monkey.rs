@@ -5,19 +5,19 @@ use std::str::FromStr;
 #[derive(Debug, PartialEq)]
 pub struct Monkey {
     pub id: usize,
-    items: VecDeque<i32>,
+    items: VecDeque<i64>,
     pub number_of_items_inspected: usize,
     operation: char,
-    operation_scalar: Option<i32>,
-    test_scalar: i32,
+    operation_scalar: Option<i64>,
+    test_scalar: i64,
     test_true_monkey_id: usize,
     test_false_monkey_id: usize,
 }
 
 impl Monkey {
-    pub fn take_turn<F>(&mut self, worry_function: F) -> Vec<(usize, i32)>
+    pub fn take_turn<F>(&mut self, worry_function: F) -> Vec<(usize, i64)>
     where
-        F: FnOnce(i32) -> i32 + Copy,
+        F: FnOnce(i64) -> i64 + Copy,
     {
         let mut result = vec![];
 
@@ -36,15 +36,15 @@ impl Monkey {
         result
     }
 
-    pub fn take_item(&mut self, worry_value: i32) {
+    pub fn take_item(&mut self, worry_value: i64) {
         self.items.push_back(worry_value);
     }
 
-    pub fn must_divide_by(&self) -> i32 {
+    pub fn must_divide_by(&self) -> i64 {
         self.test_scalar
     }
 
-    fn apply_operation(&self, worry_level: i32) -> i32 {
+    fn apply_operation(&self, worry_level: i64) -> i64 {
         let scalar = self.operation_scalar.unwrap_or(worry_level);
 
         match &self.operation {
@@ -56,7 +56,7 @@ impl Monkey {
         }
     }
 
-    fn get_monkey_to_throw_to(&self, worry_level: i32) -> usize {
+    fn get_monkey_to_throw_to(&self, worry_level: i64) -> usize {
         if self.run_test(worry_level) {
             self.test_true_monkey_id
         } else {
@@ -64,7 +64,7 @@ impl Monkey {
         }
     }
 
-    fn run_test(&self, worry_level: i32) -> bool {
+    fn run_test(&self, worry_level: i64) -> bool {
         worry_level % self.test_scalar == 0
     }
 }
