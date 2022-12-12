@@ -15,7 +15,10 @@ pub struct Monkey {
 }
 
 impl Monkey {
-    pub fn take_turn(&mut self, worry_function: fn(i32) -> i32) -> Vec<(usize, i32)> {
+    pub fn take_turn<F>(&mut self, worry_function: F) -> Vec<(usize, i32)>
+    where
+        F: FnOnce(i32) -> i32 + Copy,
+    {
         let mut result = vec![];
 
         while let Some(mut worry_level) = self.items.pop_front() {
