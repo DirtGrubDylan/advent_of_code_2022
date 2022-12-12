@@ -11,6 +11,9 @@ pub fn run() {
     device.add_video_system_cpu_instructions(&input);
 
     println!("Day 10, Part 1: {}", part_1(&mut device));
+
+    println!("Day 10, Part 2:");
+    device.print_video_system_display();
 }
 
 fn part_1(device: &mut Device) -> i32 {
@@ -34,10 +37,20 @@ mod tests {
 
         device.add_video_system_cpu_instructions(&input);
 
-        let expected = 13_140;
+        let part_1_expected = 13_140;
+        let part_2_expected: Vec<Vec<char>> = vec![
+            "##..##..##..##..##..##..##..##..##..##..".chars().collect(),
+            "###...###...###...###...###...###...###.".chars().collect(),
+            "####....####....####....####....####....".chars().collect(),
+            "#####.....#####.....#####.....#####.....".chars().collect(),
+            "######......######......######......####".chars().collect(),
+            "#######.......#######.......#######.....".chars().collect(),
+        ];
 
-        let result = part_1(&mut device);
+        let part_1_result = part_1(&mut device);
+        let part_2_result = device.get_video_system_display();
 
-        assert_eq!(result, expected);
+        assert_eq!(part_1_result, part_1_expected);
+        assert_eq!(part_2_result, part_2_expected);
     }
 }

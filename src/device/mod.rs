@@ -16,7 +16,7 @@ const TOTAL_FILE_SYSTEM_SIZE: u64 = 70_000_000;
 pub struct Device {
     data_stream_buffer: Vec<char>,
     file_system: FileSystem,
-    video_sytem: VideoSystem,
+    video_system: VideoSystem,
 }
 
 impl Device {
@@ -24,7 +24,7 @@ impl Device {
         Device {
             data_stream_buffer: vec![],
             file_system: FileSystem::new(),
-            video_sytem: VideoSystem::new(),
+            video_system: VideoSystem::new(),
         }
     }
 
@@ -66,15 +66,23 @@ impl Device {
     }
 
     pub fn add_video_system_cpu_instructions(&mut self, input: &[String]) {
-        self.video_sytem.add_cpu_instructions(input);
+        self.video_system.add_cpu_instructions(input);
     }
 
     pub fn get_video_system_x_signal_strengths_at(&mut self, ticks: &HashSet<usize>) -> Vec<i32> {
-        self.video_sytem
+        self.video_system
             .get_cpu_register_signal_strengths_at('X', ticks)
             .into_iter()
             .filter_map(|value| value)
             .collect()
+    }
+
+    pub fn get_video_system_display(&self) -> Vec<Vec<char>> {
+        self.video_system.get_display()
+    }
+
+    pub fn print_video_system_display(&self) {
+        self.video_system.print_display();
     }
 }
 
@@ -83,7 +91,7 @@ impl From<&String> for Device {
         Device {
             data_stream_buffer: input.chars().collect(),
             file_system: FileSystem::new(),
-            video_sytem: VideoSystem::new(),
+            video_system: VideoSystem::new(),
         }
     }
 }

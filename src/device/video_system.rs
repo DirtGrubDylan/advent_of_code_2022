@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum CycleState {
     Starting,
     Executing,
@@ -94,16 +94,16 @@ impl From<&String> for CpuInstruction {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Cpu {
+pub struct CPU {
     registers: HashMap<char, i32>,
     instructions: VecDeque<CpuInstruction>,
     current_instruction: Option<CpuInstruction>,
     ticks_left_for_current_instruction: usize,
 }
 
-impl Cpu {
-    pub fn new() -> Cpu {
-        Cpu {
+impl CPU {
+    pub fn new() -> CPU {
+        CPU {
             registers: HashMap::from([('X', 1)]),
             instructions: VecDeque::new(),
             current_instruction: None,
@@ -160,17 +160,76 @@ impl Cpu {
 }
 
 #[derive(Debug, PartialEq)]
+struct CRT {
+    display: Vec<Vec<char>>,
+    current_col: usize,
+    current_row: usize,
+}
+
+impl CRT {
+    fn new() -> CRT {
+        CRT {
+            display: vec![vec!['.'; 40]; 6],
+            current_col: 0,
+            current_row: 0,
+        }
+    }
+
+    fn print(&self) {
+        println!("{}", ['='; 46].iter().collect::<String>());
+
+        for row in self.display.iter() {
+            println!(
+                "|| {} ||",
+                row.iter()
+                    .map(|&c| if c == '.' { ' ' } else { c })
+                    .collect::<String>()
+            );
+        }
+
+        println!("{}", ['='; 46].iter().collect::<String>());
+    }
+
+    fn run(&mut self, cycle: &Cycle, sprite_center_location: i32) {
+        self.current_row = (cycle.tick.saturating_sub(1) / 40) % 6;
+        self.current_col = cycle.tick.saturating_sub(1) % 40;
+
+        if cycle.state == CycleState::Executing {
+            self.draw_sprite(sprite_center_location);
+        }
+    }
+
+    fn draw_sprite(&mut self, sprite_center_location: i32) {
+        let distance_to_center = sprite_center_location - (self.current_col as i32);
+
+        if distance_to_center.abs() <= 1 {
+            self.display[self.current_row][self.current_col] = '#';
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct VideoSystem {
     clock: ClockCircuit,
-    cpu: Cpu,
+    cpu: CPU,
+    crt: CRT,
 }
 
 impl VideoSystem {
     pub fn new() -> VideoSystem {
         VideoSystem {
             clock: ClockCircuit::new(),
-            cpu: Cpu::new(),
+            cpu: CPU::new(),
+            crt: CRT::new(),
         }
+    }
+
+    pub fn print_display(&self) {
+        self.crt.print();
+    }
+
+    pub fn get_display(&self) -> Vec<Vec<char>> {
+        self.crt.display.clone()
     }
 
     pub fn add_cpu_instructions(&mut self, input: &[String]) {
@@ -190,17 +249,16 @@ impl VideoSystem {
         let mut result = Vec::new();
         let temp_clock = self.clock;
 
-        let max_tick = ticks
-            .iter()
-            .max()
-            .expect(&format!("No max found for ticks: {:?}", ticks));
-
         for cycle in temp_clock {
-            if *max_tick < cycle.tick {
+            if self.cpu.instructions.is_empty() && self.cpu.current_instruction.is_none() {
                 break;
             }
 
             self.cpu.run(&cycle);
+
+            let sprite_center_location = self.cpu.get_register_value('X').unwrap_or(-2);
+
+            self.crt.run(&cycle, sprite_center_location);
 
             if ticks.contains(&cycle.tick) && (cycle.state == CycleState::Executing) {
                 result.push(
@@ -287,11 +345,11 @@ mod tests {
 
     #[test]
     fn test_cpu_execute_noop() {
-        let mut cpu = Cpu::new();
+        let mut cpu = CPU::new();
 
         cpu.execute(&CpuInstruction::NoOp);
 
-        let expected = Cpu {
+        let expected = CPU {
             registers: HashMap::from([('X', 1)]),
             instructions: VecDeque::new(),
             current_instruction: None,
@@ -303,9 +361,9 @@ mod tests {
 
     #[test]
     fn test_cpu_execute_add() {
-        let mut cpu = Cpu::new();
+        let mut cpu = CPU::new();
 
-        let expected = Cpu {
+        let expected = CPU {
             registers: HashMap::from([('X', -1)]),
             instructions: VecDeque::new(),
             current_instruction: None,
@@ -326,12 +384,12 @@ mod tests {
             CpuInstruction::Add(-5),
         ];
 
-        let mut cpu = Cpu::new();
+        let mut cpu = CPU::new();
         let clock = ClockCircuit::new();
 
         cpu.add_instructions(&input);
 
-        let expected = Cpu {
+        let expected = CPU {
             registers: HashMap::from([('X', 1)]),
             instructions: VecDeque::from([CpuInstruction::Add(3), CpuInstruction::Add(-5)]),
             current_instruction: Some(CpuInstruction::NoOp),
@@ -353,12 +411,12 @@ mod tests {
             CpuInstruction::Add(-5),
         ];
 
-        let mut cpu = Cpu::new();
+        let mut cpu = CPU::new();
         let clock = ClockCircuit::new();
 
         cpu.add_instructions(&input);
 
-        let expected = Cpu {
+        let expected = CPU {
             registers: HashMap::from([('X', 1)]),
             instructions: VecDeque::from([CpuInstruction::Add(-5)]),
             current_instruction: Some(CpuInstruction::Add(3)),
@@ -380,12 +438,12 @@ mod tests {
             CpuInstruction::Add(-5),
         ];
 
-        let mut cpu = Cpu::new();
+        let mut cpu = CPU::new();
         let clock = ClockCircuit::new();
 
         cpu.add_instructions(&input);
 
-        let expected = Cpu {
+        let expected = CPU {
             registers: HashMap::from([('X', 4)]),
             instructions: VecDeque::from([CpuInstruction::Add(-5)]),
             current_instruction: None,
@@ -398,6 +456,7 @@ mod tests {
 
         assert_eq!(cpu, expected);
     }
+
     #[test]
     fn test_cpu_execute_run_first_cycle_4_ending() {
         let input = vec![
@@ -406,12 +465,12 @@ mod tests {
             CpuInstruction::Add(-5),
         ];
 
-        let mut cpu = Cpu::new();
+        let mut cpu = CPU::new();
         let clock = ClockCircuit::new();
 
         cpu.add_instructions(&input);
 
-        let expected = Cpu {
+        let expected = CPU {
             registers: HashMap::from([('X', 4)]),
             instructions: VecDeque::new(),
             current_instruction: Some(CpuInstruction::Add(-5)),
@@ -425,6 +484,7 @@ mod tests {
 
         assert_eq!(cpu, expected);
     }
+
     #[test]
     fn test_cpu_execute_run_all_cycles() {
         let input = vec![
@@ -433,12 +493,12 @@ mod tests {
             CpuInstruction::Add(-5),
         ];
 
-        let mut cpu = Cpu::new();
+        let mut cpu = CPU::new();
         let clock = ClockCircuit::new();
 
         cpu.add_instructions(&input);
 
-        let expected = Cpu {
+        let expected = CPU {
             registers: HashMap::from([('X', -1)]),
             instructions: VecDeque::new(),
             current_instruction: None,
@@ -454,5 +514,106 @@ mod tests {
         }
 
         assert_eq!(cpu, expected);
+    }
+
+    #[test]
+    fn test_crt_draw_sprite_left_in_bounds() {
+        let sprite_center = 1;
+
+        let mut crt = CRT::new();
+
+        let expected: Vec<char> = "#.......................................".chars().collect();
+
+        crt.draw_sprite(sprite_center);
+
+        assert_eq!(crt.display[0], expected);
+    }
+
+    #[test]
+    fn test_crt_draw_sprite_center_in_bounds() {
+        let sprite_center = 0;
+
+        let mut crt = CRT::new();
+
+        let expected: Vec<char> = "#.......................................".chars().collect();
+
+        crt.draw_sprite(sprite_center);
+
+        assert_eq!(crt.display[0], expected);
+    }
+
+    #[test]
+    fn test_crt_draw_sprite_right_in_bounds() {
+        let sprite_center = -1;
+
+        let mut crt = CRT::new();
+
+        let expected: Vec<char> = "#.......................................".chars().collect();
+
+        crt.draw_sprite(sprite_center);
+
+        assert_eq!(crt.display[0], expected);
+    }
+
+    #[test]
+    fn test_crt_draw_sprite_left_out_of_bounds() {
+        let sprite_center = -2;
+
+        let mut crt = CRT::new();
+
+        let expected: Vec<char> = "........................................".chars().collect();
+
+        crt.draw_sprite(sprite_center);
+
+        assert_eq!(crt.display[0], expected);
+    }
+
+    #[test]
+    fn test_crt_draw_sprite_right_out_of_bounds() {
+        let sprite_center = 2;
+
+        let mut crt = CRT::new();
+
+        let expected: Vec<char> = "........................................".chars().collect();
+
+        crt.draw_sprite(sprite_center);
+
+        assert_eq!(crt.display[0], expected);
+    }
+
+    #[test]
+    fn test_crt_execute_run_cycle_3_ending() {
+        let mut crt = CRT::new();
+        let clock = ClockCircuit::new();
+
+        let expected = CRT {
+            display: vec![vec!['.'; 40]; 6],
+            current_col: 2,
+            current_row: 0,
+        };
+
+        clock.take(9).for_each(|cycle| {
+            crt.run(&cycle, -2);
+        });
+
+        assert_eq!(crt, expected);
+    }
+
+    #[test]
+    fn test_crt_execute_run_cycle_240_ending() {
+        let mut crt = CRT::new();
+        let clock = ClockCircuit::new();
+
+        let expected = CRT {
+            display: vec![vec!['.'; 40]; 6],
+            current_col: 39,
+            current_row: 5,
+        };
+
+        clock.take(720).for_each(|cycle| {
+            crt.run(&cycle, -2);
+        });
+
+        assert_eq!(crt, expected);
     }
 }
