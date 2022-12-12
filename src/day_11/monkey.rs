@@ -4,9 +4,9 @@ use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub struct Monkey {
-    id: usize,
+    pub id: usize,
     items: VecDeque<i32>,
-    number_of_items_inspected: usize,
+    pub number_of_items_inspected: usize,
     operation: char,
     operation_scalar: Option<i32>,
     test_scalar: i32,
@@ -14,8 +14,56 @@ pub struct Monkey {
     test_false_monkey_id: usize,
 }
 
-impl From<&Vec<String>> for Monkey {
-    fn from(input: &Vec<String>) -> Monkey {
+impl Monkey {
+    pub fn take_turn(&mut self, worry_function: fn(i32) -> i32) -> Vec<(usize, i32)> {
+        let mut result = vec![];
+
+        while let Some(mut worry_level) = self.items.pop_front() {
+            self.number_of_items_inspected += 1;
+
+            worry_level = self.apply_operation(worry_level);
+
+            worry_level = worry_function(worry_level);
+
+            let to_monkey = self.get_monkey_to_throw_to(worry_level);
+
+            result.push((to_monkey, worry_level));
+        }
+
+        result
+    }
+
+    pub fn take_item(&mut self, worry_value: i32) {
+        self.items.push_back(worry_value);
+    }
+
+    fn apply_operation(&self, worry_level: i32) -> i32 {
+        let scalar = self.operation_scalar.unwrap_or(worry_level);
+
+        match &self.operation {
+            '+' => worry_level + scalar,
+            '-' => worry_level - scalar,
+            '*' => worry_level * scalar,
+            '/' => worry_level / scalar,
+            _ => panic!("Unknown operation: {}", self.operation),
+        }
+    }
+
+    fn get_monkey_to_throw_to(&self, worry_level: i32) -> usize {
+        if self.run_test(worry_level) {
+            self.test_true_monkey_id
+        } else {
+            self.test_false_monkey_id
+        }
+    }
+
+    fn run_test(&self, worry_level: i32) -> bool {
+        worry_level % self.test_scalar == 0
+    }
+}
+
+impl From<&[String]> for Monkey {
+    fn from(input: &[String]) -> Monkey {
         let id = get_only_digit(&input[0]).unwrap();
 
         let items = input[1][18..]
@@ -86,7 +134,7 @@ mod tests {
             test_false_monkey_id: 3,
         };
 
-        let result = Monkey::from(&input);
+        let result = Monkey::from(input.as_slice());
 
         assert_eq!(result, expected);
     }
@@ -113,7 +161,47 @@ mod tests {
             test_false_monkey_id: 3,
         };
 
-        let result = Monkey::from(&input);
+        let result = Monkey::from(input.as_slice());
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_money_take_turn_all_true() {
+        let input = vec![
+            String::from("Monkey 0:"),
+            String::from("  Starting items: 69"),
+            String::from("  Operation: new = old + old"),
+            String::from("  Test: divisible by 23"),
+            String::from("    If true: throw to monkey 2"),
+            String::from("    If false: throw to monkey 3"),
+        ];
+
+        let mut monkey = Monkey::from(input.as_slice());
+
+        let expected = vec![(2, 46)];
+
+        let result = monkey.take_turn(|worry_level| worry_level / 3);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_money_take_turn_all_false() {
+        let input = vec![
+            String::from("Monkey 0:"),
+            String::from("  Starting items: 79, 98"),
+            String::from("  Operation: new = old * 19"),
+            String::from("  Test: divisible by 23"),
+            String::from("    If true: throw to monkey 2"),
+            String::from("    If false: throw to monkey 3"),
+        ];
+
+        let mut monkey = Monkey::from(input.as_slice());
+
+        let expected = vec![(3, 500), (3, 620)];
+
+        let result = monkey.take_turn(|worry_level| worry_level / 3);
 
         assert_eq!(result, expected);
     }
