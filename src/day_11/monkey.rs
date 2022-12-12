@@ -37,6 +37,10 @@ impl Monkey {
         self.items.push_back(worry_value);
     }
 
+    pub fn must_divide_by(&self) -> i32 {
+        self.test_scalar
+    }
+
     fn apply_operation(&self, worry_level: i32) -> i32 {
         let scalar = self.operation_scalar.unwrap_or(worry_level);
 
