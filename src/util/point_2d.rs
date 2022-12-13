@@ -45,6 +45,13 @@ where
     pub fn new(x: T, y: T) -> Point2d<T> {
         Point2d { x, y }
     }
+
+    pub fn add_t(&self, other: (T, T)) -> Point2d<T> {
+        Point2d {
+            x: self.x + other.0,
+            y: self.y + other.1,
+        }
+    }
 }
 
 impl<T> Location for Point2d<T>
@@ -131,6 +138,17 @@ mod tests {
         let expected = Point2d::new(8, 3);
 
         let result = first.add(&second);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_add_tuple() {
+        let first = Point2d::new(3, 4);
+
+        let expected = Point2d::new(8, 3);
+
+        let result = first.add_t((5, -1));
 
         assert_eq!(result, expected);
     }
