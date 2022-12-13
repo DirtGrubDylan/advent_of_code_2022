@@ -41,7 +41,7 @@ mod tests {
     #[test]
     fn test_gcd_not_1() {
         let expected = 5;
-        
+
         let result = gcd(15, 20);
 
         assert_eq!(result, expected);
@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn test_gcd_1() {
         let expected = 1;
-        
+
         let result = gcd(19, 20);
 
         assert_eq!(result, expected);
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn test_lcm_reduced() {
         let expected = 60;
-        
+
         let result = lcm(15, 20);
 
         assert_eq!(result, expected);
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn test_lcm_not_reduced() {
         let expected = 19 * 20;
-        
+
         let result = lcm(19, 20);
 
         assert_eq!(result, expected);
