@@ -77,19 +77,67 @@ impl HeightMap {
         }
     }
 
+    pub fn get_shortest_hiking_path(&self) -> Vec<Point2d<i32>> {
+        let lowest_points: Vec<Point2d<i32>> = self
+            .points
+            .iter()
+            .filter(|(_, height)| **height == 'a')
+            .map(|(point, _)| *point)
+            .collect();
+
+        let mut min_path_so_far = vec![];
+        let mut already_started = HashSet::new();
+
+        for start in lowest_points.into_iter() {
+            let path = self.get_shortest_path_starting_from(
+                start,
+                min_path_so_far.len(),
+                &already_started,
+            );
+
+            if path.is_empty() {
+                continue;
+            }
+
+            if min_path_so_far.is_empty() || (path.len() < min_path_so_far.len()) {
+                min_path_so_far = path;
+            }
+
+            already_started.insert(start);
+        }
+
+        min_path_so_far
+    }
+
     pub fn get_shortest_path(&self) -> Vec<Point2d<i32>> {
-        let mut added_points: HashSet<Point2d<i32>> = HashSet::from([self.start]);
+        self.get_shortest_path_starting_from(self.start, self.points.len(), &HashSet::new())
+    }
+
+    pub fn get_shortest_path_starting_from(
+        &self,
+        start: Point2d<i32>,
+        max_distance: usize,
+        already_started_points: &HashSet<Point2d<i32>>,
+    ) -> Vec<Point2d<i32>> {
+        let mut added_points: HashSet<Point2d<i32>> = HashSet::from([start]);
         let mut move_queue: VecDeque<Move> = VecDeque::new();
         let mut result = vec![];
 
-        let first_move = Move::new(&self.start);
+        let first_move = Move::new(&start);
 
         move_queue.push_back(first_move);
+        added_points.extend(already_started_points);
 
         while let Some(current_move) = move_queue.pop_front() {
             if current_move.point == self.end {
                 result = current_move.points_seen;
                 result.push(self.end);
+
+                break;
+            }
+
+            if (current_move.distance_traveled == max_distance) && (max_distance != 0) {
+                result = vec![];
 
                 break;
             }
@@ -106,10 +154,6 @@ impl HeightMap {
             .filter(|next_move| self.height_difference(&current_move.point, &next_move.point) <= 1)
             .collect();
 
-            if *self.points.get(&current_move.point).unwrap() == 'u' {
-                println!("{:?}", current_move.point);
-            }
-
             while let Some(next_move) = next_moves.pop() {
                 added_points.insert(next_move.point);
 
@@ -124,7 +168,7 @@ impl HeightMap {
         let lhs = self.points.get(current_point).map_or(0, |v| *v as i32);
         let rhs = self.points.get(next_point).map_or(0, |v| *v as i32);
 
-        (lhs - rhs).abs()
+        rhs - lhs
     }
 }
 
@@ -157,13 +201,66 @@ mod tests {
             String::from("abdefghi"),
         ];
 
-        let expected = HeightMap::new();
-
         let result = HeightMap::from(&input);
 
         assert_eq!(result.start, Point2d::new(0, 0));
         assert_eq!(result.end, Point2d::new(5, 2));
         assert_eq!(result.points.len(), 40);
+    }
+
+    #[test]
+    fn test_get_shortest_hiking_path() {
+        let input = vec![
+            String::from("Sabqponm"),
+            String::from("abcryxxl"),
+            String::from("accszExk"),
+            String::from("acctuvwj"),
+            String::from("abdefghi"),
+        ];
+
+        let height_map = HeightMap::from(&input);
+
+        // ...v<<<<
+        // ...vv<<^
+        // ...v>E^^
+        // .>v>>>^^
+        // >^>>>>>^
+        let expected = vec![
+            Point2d::new(0, 4),
+            Point2d::new(1, 4),
+            Point2d::new(1, 3),
+            Point2d::new(2, 3),
+            Point2d::new(2, 4),
+            Point2d::new(3, 4),
+            Point2d::new(4, 4),
+            Point2d::new(5, 4),
+            Point2d::new(6, 4),
+            Point2d::new(7, 4),
+            Point2d::new(7, 3),
+            Point2d::new(7, 2),
+            Point2d::new(7, 1),
+            Point2d::new(7, 0),
+            Point2d::new(6, 0),
+            Point2d::new(5, 0),
+            Point2d::new(4, 0),
+            Point2d::new(3, 0),
+            Point2d::new(3, 1),
+            Point2d::new(3, 2),
+            Point2d::new(3, 3),
+            Point2d::new(4, 3),
+            Point2d::new(5, 3),
+            Point2d::new(6, 3),
+            Point2d::new(6, 2),
+            Point2d::new(6, 1),
+            Point2d::new(5, 1),
+            Point2d::new(4, 1),
+            Point2d::new(4, 2),
+            Point2d::new(5, 2),
+        ];
+
+        let result = height_map.get_shortest_hiking_path();
+
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -236,7 +333,7 @@ mod tests {
         let height_map = HeightMap::from(&input);
 
         let expected_1 = 0;
-        let expected_2 = 1;
+        let expected_2 = -1;
         let expected_3 = 25;
 
         let result_1 = height_map.height_difference(&Point2d::new(0, 0), &Point2d::new(0, 1));
