@@ -7,14 +7,6 @@ enum Packet {
 }
 
 impl Packet {
-    fn new_value() -> Packet {
-        Packet::Value(0)
-    }
-
-    fn new_list() -> Packet {
-        Packet::List(vec![])
-    }
-
     fn get_size(&self) -> usize {
         unimplemented!()
     }
@@ -33,21 +25,27 @@ impl From<&[char]> for Packet {
 
             match current_char {
                 ('0'..='9') => {
-                    current_packet = Some(Packet::new_value());
+                    current_packet = Some(Packet::Value(0));
 
                     current_value *= 10;
                     current_value += current_char.to_digit(10).unwrap();
                 }
                 '[' => {
-                    current_packet = Some(Packet::new_value());
+                    current_packet = Some(Packet::List(vec![]));
 
-                    let sub_packet = Box::new(Packet::from(&input[(current_index + 1)..]));
+                    let temp = Box::new(Packet::from(&input[(current_index + 1)..]));
 
-                    sub_packets.push(sub_packet);
+                    sub_packets.push(temp);
                 }
-                ',' => {
-                    break;
-                }
+                ',' => match current_packet {
+                    Some(Packet::Value(_)) => break,
+                    Some(Packet::List(_)) => {
+                        let temp = Box::new(Packet::from(&input[(current_index + 1)..]));
+
+                        sub_packets.push(temp);
+                    }
+                    None => panic!(),
+                },
                 ']' => {
                     break;
                 }
@@ -68,6 +66,45 @@ impl From<&[char]> for Packet {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_packet_value_size() {
+        let packet_1 = Packet::Value(1);
+        let packet_2 = Packet::Value(10);
+        let packet_3 = Packet::Value(110);
+
+        let expected_1 = 1;
+        let expected_2 = 2;
+        let expected_3 = 3;
+
+        let result_1 = packet_1.get_size();
+        let result_2 = packet_2.get_size();
+        let result_3 = packet_3.get_size();
+
+        assert_eq!(result_1, expected_1);
+        assert_eq!(result_2, expected_2);
+        assert_eq!(result_3, expected_3);
+    }
+
+    #[test]
+    fn test_packet_list_of_values_size() {
+        // 01234567890123
+        //"[1,110,30,1,1]"
+        let packet = Packet::List(vec![
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(110)),
+            Box::new(Packet::Value(30)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+        ]);
+
+        // 5 items: 8 chars && 4 commas
+        let expected = 12;
+
+        let result = packet.get_size();
+
+        assert_eq!(result, expected);
+    }
 
     #[test]
     fn test_packet_value_from() {
