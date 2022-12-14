@@ -1,3 +1,5 @@
+use std::vec;
+
 #[derive(Debug, PartialEq)]
 enum Packet {
     Value(usize),
@@ -5,6 +7,14 @@ enum Packet {
 }
 
 impl Packet {
+    fn new_value() -> Packet {
+        Packet::Value(0)
+    }
+
+    fn new_list() -> Packet {
+        Packet::List(vec![])
+    }
+
     fn get_size(&self) -> usize {
         unimplemented!()
     }
@@ -12,7 +22,46 @@ impl Packet {
 
 impl From<&[char]> for Packet {
     fn from(input: &[char]) -> Packet {
-        unimplemented!()
+        let mut current_index = 0;
+        let mut current_value = 0;
+        let mut sub_packets: Vec<Box<Packet>> = vec![];
+
+        let mut current_packet: Option<Packet> = None;
+
+        while current_index < input.len() {
+            let current_char = input[current_index];
+
+            match current_char {
+                ('0'..='9') => {
+                    current_packet = Some(Packet::new_value());
+
+                    current_value *= 10;
+                    current_value += current_char.to_digit(10).unwrap();
+                }
+                '[' => {
+                    current_packet = Some(Packet::new_value());
+
+                    let sub_packet = Box::new(Packet::from(&input[(current_index + 1)..]));
+
+                    sub_packets.push(sub_packet);
+                }
+                ',' => {
+                    break;
+                }
+                ']' => {
+                    break;
+                }
+                _ => panic!(),
+            }
+
+            current_index += 1;
+        }
+
+        match current_packet {
+            Some(Packet::Value(_)) => Packet::Value(current_value as usize),
+            Some(Packet::List(_)) => Packet::List(sub_packets),
+            None => panic!(),
+        }
     }
 }
 
@@ -26,7 +75,7 @@ mod tests {
 
         let expected = Packet::Value(10);
 
-        let result = Packet::from(&input[4..]);
+        let result = Packet::from(&input[3..]);
 
         assert_eq!(result, expected);
     }
