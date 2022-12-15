@@ -41,10 +41,10 @@ impl From<&[char]> for Packet {
 
         while current_index < input.len() {
             let current_char = input[current_index];
+            println!("=================================================")
             println!("input: {:?}", input);
             println!("current_index: {}", current_index);
             println!("current_char: {}", current_char);
-            println!("current_packet: {:?}", current_packet);
 
             match current_char {
                 ('0'..='9') => {
@@ -78,6 +78,7 @@ impl From<&[char]> for Packet {
                 }
                 _ => panic!(),
             }
+            println!("current_packet: {:?}", current_packet);
 
             current_index += 1;
         }
