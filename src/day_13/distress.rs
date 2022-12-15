@@ -1,12 +1,60 @@
 use std::vec;
 
 #[derive(Debug, PartialEq)]
-enum Packet {
+pub enum PacketOrder {
+    Unknown,
+    In,
+    Out,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Packet {
     Value(usize),
     List(Vec<Box<Packet>>),
 }
 
 impl Packet {
+    pub fn get_order(&self, other: &Packet) -> PacketOrder {
+        match (&self, &other) {
+            (&Packet::Value(l), &Packet::Value(r)) if l < r => PacketOrder::In,
+            (&Packet::Value(l), &Packet::Value(r)) if l == r => PacketOrder::Unknown,
+            (&Packet::Value(l), &Packet::Value(r)) if r < l => PacketOrder::Out,
+            (&Packet::List(l), &Packet::Value(r)) => {
+                self.get_order(&Packet::List(vec![Box::new(Packet::Value(*r))]))
+            }
+            (&Packet::Value(l), &Packet::List(r)) => {
+                Packet::List(vec![Box::new(Packet::Value(*l))]).get_order(other)
+            }
+            (&Packet::List(l), &Packet::List(r)) => {
+                let mut result = PacketOrder::Unknown;
+
+                for (left, right) in l.iter().zip(r.iter()) {
+                    match left.get_order(right) {
+                        PacketOrder::Unknown => continue,
+                        PacketOrder::In => {
+                            result = PacketOrder::In;
+
+                            break;
+                        }
+                        PacketOrder::Out => {
+                            result = PacketOrder::Out;
+
+                            break;
+                        }
+                        _ => panic!(),
+                    }
+                }
+
+                match result {
+                    PacketOrder::Unknown if l.len() < r.len() => PacketOrder::In,
+                    PacketOrder::Unknown if r.len() < l.len() => PacketOrder::Out,
+                    _ => result,
+                }
+            }
+            _ => panic!(),
+        }
+    }
+
     fn get_size(&self) -> usize {
         match &self {
             Packet::Value(mut x) => {
@@ -29,6 +77,8 @@ impl Packet {
             }
         }
     }
+
+
 }
 
 impl From<&[char]> for Packet {
@@ -200,6 +250,340 @@ mod tests {
         ]);
 
         let result = Packet::from(&input[0..]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_unknown_order_just_values() {
+        let packet = Packet::Value(1);
+        let other = Packet::Value(1);
+
+        let expected = PacketOrder::Unknown;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_just_values() {
+        let packet = Packet::Value(1);
+        let other = Packet::Value(2);
+
+        let expected = PacketOrder::In;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_out_of_order_just_values() {
+        let packet = Packet::Value(2);
+        let other = Packet::Value(1);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_unknown_order_list_all_values() {
+        let packet = Packet::List(vec![Box::new(Packet::Value(1)), Box::new(Packet::Value(1))]);
+        let other = Packet::List(vec![Box::new(Packet::Value(1)), Box::new(Packet::Value(1))]);
+
+        let expected = PacketOrder::Unknown;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_list_all_values() {
+        let packet = Packet::List(vec![
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(3)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+        ]);
+        let other = Packet::List(vec![
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(5)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+        ]);
+
+        let expected = PacketOrder::In;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_out_of_order_list_all_values() {
+        let packet = Packet::List(vec![
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(5)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+        ]);
+        let other = Packet::List(vec![
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(3)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+        ]);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_unknown_order_lists_same() {
+        let packet = Packet::List(vec![Box::new(Packet::Value(1)), Box::new(Packet::Value(1))]);
+        let other = Packet::List(vec![Box::new(Packet::Value(1)), Box::new(Packet::Value(1))]);
+
+        let expected = PacketOrder::Unknown;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_out_of_order_list_right_runs_out() {
+        let packet = Packet::List(vec![
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::Value(1)),
+        ]);
+        let other = Packet::List(vec![Box::new(Packet::Value(1)), Box::new(Packet::Value(1))]);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_list_and_value() {
+        let packet = Packet::List(vec![Box::new(Packet::Value(1))]);
+        let other = Packet::Value(1);
+
+        let expected = PacketOrder::Unknown;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_list_value_and_list() {
+        let packet = Packet::Value(1);
+        let other = Packet::List(vec![Box::new(Packet::Value(2))]);
+
+        let expected = PacketOrder::In;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_out_of_order_list_and_value() {
+        let packet = Packet::List(vec![Box::new(Packet::Value(1)), Box::new(Packet::Value(2))]);
+        let other = Packet::Value(1);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_out_of_order_value_and_list() {
+        let packet = Packet::Value(2);
+        let other = Packet::List(vec![Box::new(Packet::Value(1)), Box::new(Packet::Value(2))]);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_test_2() {
+        let packet = Packet::List(vec![
+            Box::new(Packet::List(vec![Box::new(Packet::Value(1))])),
+            Box::new(Packet::List(vec![
+                Box::new(Packet::Value(2)),
+                Box::new(Packet::Value(3)),
+                Box::new(Packet::Value(4)),
+            ])),
+        ]);
+        let other = Packet::List(vec![
+            Box::new(Packet::List(vec![Box::new(Packet::Value(1))])),
+            Box::new(Packet::Value(4)),
+        ]);
+
+        let expected = PacketOrder::In;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_test_3() {
+        let packet = Packet::List(vec![Box::new(Packet::Value(9))]);
+        let other = Packet::List(vec![Box::new(Packet::List(vec![
+            Box::new(Packet::Value(8)),
+            Box::new(Packet::Value(7)),
+            Box::new(Packet::Value(6)),
+        ]))]);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    // [[4,4],4,4]
+    // [[4,4],4,4,4]
+    #[test]
+    fn test_packet_in_order_test_4() {
+        let packet = Packet::List(vec![
+            Box::new(Packet::List(vec![
+                Box::new(Packet::Value(4)),
+                Box::new(Packet::Value(4)),
+            ])),
+            Box::new(Packet::Value(4)),
+            Box::new(Packet::Value(4)),
+        ]);
+        let other = Packet::List(vec![
+            Box::new(Packet::List(vec![
+                Box::new(Packet::Value(4)),
+                Box::new(Packet::Value(4)),
+            ])),
+            Box::new(Packet::Value(4)),
+            Box::new(Packet::Value(4)),
+            Box::new(Packet::Value(4)),
+        ]);
+
+        let expected = PacketOrder::In;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_test_5() {
+        let packet = Packet::List(vec![
+            Box::new(Packet::Value(7)),
+            Box::new(Packet::Value(7)),
+            Box::new(Packet::Value(7)),
+            Box::new(Packet::Value(7)),
+        ]);
+        let other = Packet::List(vec![
+            Box::new(Packet::Value(7)),
+            Box::new(Packet::Value(7)),
+            Box::new(Packet::Value(7)),
+        ]);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_test_6() {
+        let packet = Packet::List(vec![]);
+        let other = Packet::List(vec![Box::new(Packet::Value(3))]);
+
+        let expected = PacketOrder::In;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_test_7() {
+        let packet = Packet::List(vec![Box::new(Packet::List(vec![Box::new(Packet::List(
+            vec![],
+        ))]))]);
+        let other = Packet::List(vec![Box::new(Packet::List(vec![]))]);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_packet_in_order_test_8() {
+        let packet = Packet::List(vec![
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::List(vec![
+                Box::new(Packet::Value(2)),
+                Box::new(Packet::List(vec![
+                    Box::new(Packet::Value(3)),
+                    Box::new(Packet::List(vec![
+                        Box::new(Packet::Value(4)),
+                        Box::new(Packet::List(vec![
+                            Box::new(Packet::Value(5)),
+                            Box::new(Packet::Value(6)),
+                            Box::new(Packet::Value(7)),
+                        ])),
+                    ])),
+                ])),
+            ])),
+            Box::new(Packet::Value(8)),
+            Box::new(Packet::Value(9)),
+        ]);
+        let other = Packet::List(vec![
+            Box::new(Packet::Value(1)),
+            Box::new(Packet::List(vec![
+                Box::new(Packet::Value(2)),
+                Box::new(Packet::List(vec![
+                    Box::new(Packet::Value(3)),
+                    Box::new(Packet::List(vec![
+                        Box::new(Packet::Value(4)),
+                        Box::new(Packet::List(vec![
+                            Box::new(Packet::Value(5)),
+                            Box::new(Packet::Value(6)),
+                            Box::new(Packet::Value(0)),
+                        ])),
+                    ])),
+                ])),
+            ])),
+            Box::new(Packet::Value(8)),
+            Box::new(Packet::Value(9)),
+        ]);
+
+        let expected = PacketOrder::Out;
+
+        let result = packet.get_order(&other);
 
         assert_eq!(result, expected);
     }
