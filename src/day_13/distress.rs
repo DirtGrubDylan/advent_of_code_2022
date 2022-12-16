@@ -19,10 +19,10 @@ impl Packet {
             (&Packet::Value(l), &Packet::Value(r)) if l < r => PacketOrder::In,
             (&Packet::Value(l), &Packet::Value(r)) if l == r => PacketOrder::Unknown,
             (&Packet::Value(l), &Packet::Value(r)) if r < l => PacketOrder::Out,
-            (&Packet::List(l), &Packet::Value(r)) => {
+            (&Packet::List(_), &Packet::Value(r)) => {
                 self.get_order(&Packet::List(vec![Box::new(Packet::Value(*r))]))
             }
-            (&Packet::Value(l), &Packet::List(r)) => {
+            (&Packet::Value(l), &Packet::List(_)) => {
                 Packet::List(vec![Box::new(Packet::Value(*l))]).get_order(other)
             }
             (&Packet::List(l), &Packet::List(r)) => {
@@ -41,7 +41,6 @@ impl Packet {
 
                             break;
                         }
-                        _ => panic!(),
                     }
                 }
 
@@ -69,16 +68,15 @@ impl Packet {
                 result
             }
             Packet::List(l) => {
-                let number_of_commas_and_brackets = l.len() + 1;
+                let number_of_commas = l.len().saturating_sub(1);
+                let number_of_brackets = 2;
 
                 let size_of_subpackets: usize = l.iter().map(|packet| packet.get_size()).sum();
 
-                number_of_commas_and_brackets + size_of_subpackets
+                number_of_commas + number_of_brackets + size_of_subpackets
             }
         }
     }
-
-
 }
 
 impl From<&[char]> for Packet {
