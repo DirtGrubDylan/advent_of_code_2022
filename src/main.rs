@@ -37,6 +37,7 @@ fn run_day(day: u32) {
         11 => day_11::run(),
         12 => day_12::run(),
         13 => day_13::run(),
+        14 => day_14::run(),
         _ => unimplemented!("I haven't done that day yet :("),
     }
 }
