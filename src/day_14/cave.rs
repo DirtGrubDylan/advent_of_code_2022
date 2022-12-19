@@ -44,26 +44,28 @@ impl Cave {
         }
     }
 
-    pub fn drop_sand(&mut self) -> Option<Point2d<i32>> {
+    pub fn drop_sand(&mut self, use_floor: bool) -> Option<Point2d<i32>> {
         let mut current_point = self.sand_starting_point.clone();
 
-        while self.is_in_bounds(&current_point) {
+        while self.is_in_bounds(&current_point, use_floor) {
             let point_down = current_point.add_t((0, 1));
             let point_down_and_left = current_point.add_t((-1, 1));
             let point_down_and_right = current_point.add_t((1, 1));
 
-            if !self.is_occupied(&point_down) {
+            if !self.is_occupied(&point_down, use_floor) {
                 current_point = point_down;
-            } else if !self.is_occupied(&point_down_and_left) {
+            } else if !self.is_occupied(&point_down_and_left, use_floor) {
                 current_point = point_down_and_left;
-            } else if !self.is_occupied(&point_down_and_right) {
+            } else if !self.is_occupied(&point_down_and_right, use_floor) {
                 current_point = point_down_and_right;
             } else {
                 break;
             }
         }
 
-        if self.is_in_bounds(&current_point) {
+        let starting_point_at_rest = self.sand.contains(&self.sand_starting_point);
+
+        if self.is_in_bounds(&current_point, use_floor) && !starting_point_at_rest {
             self.sand.insert(current_point.clone());
 
             Some(current_point)
@@ -72,15 +74,29 @@ impl Cave {
         }
     }
 
-    fn is_in_bounds(&self, point: &Point2d<i32>) -> bool {
+    pub fn number_of_grains(&self) -> usize {
+        self.sand.len()
+    }
+
+    fn is_in_bounds(&self, point: &Point2d<i32>, use_floor: bool) -> bool {
         let in_x_bounds = (self.x_bounds.0 <= point.x) && (point.x <= self.x_bounds.1);
         let in_y_bounds = (self.y_bounds.0 <= point.y) && (point.y <= self.y_bounds.1);
 
-        in_x_bounds && in_y_bounds
+        if use_floor {
+            (self.y_bounds.0 <= point.y) && (point.y <= (self.y_bounds.1 + 2))
+        } else {
+            in_x_bounds && in_y_bounds
+        }
     }
 
-    fn is_occupied(&self, point: &Point2d<i32>) -> bool {
-        self.rocks.contains(&point) || self.sand.contains(&point)
+    fn is_occupied(&self, point: &Point2d<i32>, use_floor: bool) -> bool {
+        let is_rock_or_sand = self.rocks.contains(&point) || self.sand.contains(&point);
+
+        if use_floor {
+            is_rock_or_sand || (point.y == self.y_bounds.1 + 2)
+        } else {
+            is_rock_or_sand
+        }
     }
 }
 
@@ -195,7 +211,7 @@ mod tests {
 
         let expected = Some(Point2d::new(500, 8));
 
-        let result = cave.drop_sand();
+        let result = cave.drop_sand(false);
 
         assert_eq!(result, expected);
     }
@@ -212,12 +228,12 @@ mod tests {
         input.iter().for_each(|line| cave.add_rock(&line));
 
         (0..23).for_each(|_| {
-            cave.drop_sand();
+            cave.drop_sand(false);
         });
 
         let expected = Some(Point2d::new(495, 8));
 
-        let result = cave.drop_sand();
+        let result = cave.drop_sand(false);
 
         assert_eq!(result, expected);
     }
@@ -225,8 +241,8 @@ mod tests {
     #[test]
     fn test_drop_sand_25_times() {
         let input = vec![
-            string::from("498,4 -> 498,6 -> 496,6"),
-            string::from("503,4 -> 502,4 -> 502,9 -> 494,9"),
+            String::from("498,4 -> 498,6 -> 496,6"),
+            String::from("503,4 -> 502,4 -> 502,9 -> 494,9"),
         ];
 
         let mut cave = Cave::new();
@@ -234,12 +250,34 @@ mod tests {
         input.iter().for_each(|line| cave.add_rock(&line));
 
         (0..24).for_each(|_| {
-            cave.drop_sand();
+            cave.drop_sand(false);
         });
 
         let expected = None;
 
-        let result = cave.drop_sand();
+        let result = cave.drop_sand(false);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_drop_sand_25_times_with_floor() {
+        let input = vec![
+            String::from("498,4 -> 498,6 -> 496,6"),
+            String::from("503,4 -> 502,4 -> 502,9 -> 494,9"),
+        ];
+
+        let mut cave = Cave::new();
+
+        input.iter().for_each(|line| cave.add_rock(&line));
+
+        (0..24).for_each(|_| {
+            cave.drop_sand(true);
+        });
+
+        let expected = Some(Point2d::new(493, 10));
+
+        let result = cave.drop_sand(true);
 
         assert_eq!(result, expected);
     }
