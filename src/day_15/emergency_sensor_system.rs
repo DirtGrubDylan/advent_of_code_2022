@@ -43,6 +43,35 @@ impl Signal {
             None
         }
     }
+
+    pub fn impossible_beacon_column_bounded_ranges(
+        &self,
+        row: i32,
+        bounds: (i32, i32),
+    ) -> Option<RangeInclusive<i32>> {
+        self.impossible_beacon_column_incl_ranges(row)
+            .map(|range| Self::bound_range(range, bounds))
+            .flatten()
+    }
+
+    fn bound_range(range: RangeInclusive<i32>, bounds: (i32, i32)) -> Option<RangeInclusive<i32>> {
+        let mut start = *range.start();
+        let mut end = *range.end();
+
+        if range.contains(&bounds.0) {
+            start = bounds.0;
+        }
+
+        if range.contains(&bounds.1) {
+            end = bounds.1;
+        }
+
+        if (end < bounds.0) || (bounds.1 < start) {
+            None
+        } else {
+            Some(start..=end)
+        }
+    }
 }
 
 impl From<&String> for Signal {
@@ -107,6 +136,61 @@ mod tests {
         let expected = Some(2..=14);
 
         let result = signal.impossible_beacon_column_incl_ranges(10);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_impossible_beacon_column_bounded_ranges_none_left() {
+        let signal = Signal::new(Point2d::new(8, 7), Point2d::new(2, 10));
+
+        let expected = None;
+
+        let result = signal.impossible_beacon_column_bounded_ranges(10, (0, 1));
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_impossible_beacon_column_bounded_ranges_none_right() {
+        let signal = Signal::new(Point2d::new(8, 7), Point2d::new(2, 10));
+
+        let expected = None;
+
+        let result = signal.impossible_beacon_column_bounded_ranges(10, (15, 20));
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_impossible_beacon_column_bounded_ranges_some() {
+        let signal = Signal::new(Point2d::new(8, 7), Point2d::new(2, 10));
+
+        let expected = Some(2..=10);
+
+        let result = signal.impossible_beacon_column_bounded_ranges(10, (0, 10));
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_impossible_beacon_column_bounded_ranges_some_one_value_left() {
+        let signal = Signal::new(Point2d::new(8, 7), Point2d::new(2, 10));
+
+        let expected = Some(2..=2);
+
+        let result = signal.impossible_beacon_column_bounded_ranges(10, (0, 2));
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_impossible_beacon_column_bounded_ranges_some_one_value_right() {
+        let signal = Signal::new(Point2d::new(8, 7), Point2d::new(2, 10));
+
+        let expected = Some(14..=14);
+
+        let result = signal.impossible_beacon_column_bounded_ranges(10, (14, 20));
 
         assert_eq!(result, expected);
     }
